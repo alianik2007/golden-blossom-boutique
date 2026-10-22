@@ -1,10 +1,4 @@
 {
-  "version": 2,
-  "functions": {
-    "api/index.js": {
-      "includeFiles": "{*.json,api/*.json,products.json,orders.json,website_settings.json,whatsapp_config.json}"
-    }
-  },
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/index.js?_route=$1" },
     { "source": "/api", "destination": "/api/index.js" },
@@ -13,3 +7,4 @@
     { "source": "/admin.js", "destination": "/admin/admin.js" }
   ]
 }
+
