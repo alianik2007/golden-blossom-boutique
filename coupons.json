@@ -1,0 +1,32 @@
+[
+  {
+    "id": "coup-golden10",
+    "code": "GOLDEN10",
+    "discountPercent": 10,
+    "description": "Complimentary 10% welcome privilege for atelier visitors",
+    "minOrderMAD": 0,
+    "active": true,
+    "usageCount": 24,
+    "createdAt": "2026-01-01T00:00:00.000Z"
+  },
+  {
+    "id": "coup-blossom20",
+    "code": "BLOSSOM20",
+    "discountPercent": 20,
+    "description": "Exclusive 20% seasonal private sale privilege",
+    "minOrderMAD": 1000,
+    "active": true,
+    "usageCount": 11,
+    "createdAt": "2026-01-15T00:00:00.000Z"
+  },
+  {
+    "id": "coup-casablanca",
+    "code": "CASABLANCA",
+    "discountPercent": 15,
+    "description": "Casablanca boutique client circle",
+    "minOrderMAD": 500,
+    "active": true,
+    "usageCount": 17,
+    "createdAt": "2026-02-01T00:00:00.000Z"
+  }
+]

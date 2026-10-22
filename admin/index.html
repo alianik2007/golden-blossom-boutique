@@ -417,6 +417,70 @@
       border-bottom-color: var(--gold-primary);
     }
 
+    /* Coupon Styles */
+    .preset-pill {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-color);
+      color: var(--text-muted);
+      padding: 5px 12px;
+      border-radius: 4px;
+      font-size: 0.76rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .preset-pill:hover, .preset-pill.active {
+      background: rgba(197, 160, 89, 0.22);
+      border-color: var(--gold-primary);
+      color: var(--gold-light);
+      font-weight: 600;
+    }
+    .coupon-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(197, 160, 89, 0.12);
+      border: 1px dashed var(--gold-primary);
+      color: var(--gold-light);
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-family: monospace;
+      font-weight: 700;
+      letter-spacing: 0.8px;
+    }
+    .btn-copy-code {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 2px 4px;
+      display: inline-flex;
+      align-items: center;
+      transition: color 0.2s;
+    }
+    .btn-copy-code:hover {
+      color: var(--gold-primary);
+    }
+    .status-pill-active {
+      display: inline-block;
+      padding: 3px 9px;
+      border-radius: 12px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      background: rgba(46, 204, 113, 0.15);
+      color: #2ecc71;
+      border: 1px solid rgba(46, 204, 113, 0.3);
+    }
+    .status-pill-paused {
+      display: inline-block;
+      padding: 3px 9px;
+      border-radius: 12px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      background: rgba(224, 82, 82, 0.15);
+      color: #e05252;
+      border: 1px solid rgba(224, 82, 82, 0.3);
+    }
+
     /* Stats Grid */
     .stats-grid {
       display: grid;
@@ -1102,6 +1166,10 @@
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
           Products Management (<span id="tabCountProducts">16</span>)
         </button>
+        <button class="tab-btn" data-tab="tab-coupons">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg>
+          Promo & Discount Codes (<span id="tabCountCoupons">3</span>)
+        </button>
         <button class="tab-btn" data-tab="tab-website">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
           Website Content & Banners
@@ -1158,6 +1226,117 @@
               <!-- Dynamically Rendered -->
             </tbody>
           </table>
+        </div>
+      </section>
+
+      <!-- TAB: PROMO & DISCOUNT CODES GENERATOR -->
+      <section class="tab-content" id="tab-coupons">
+        <div class="content-controls" style="margin-bottom: 1.5rem;">
+          <div>
+            <h2 style="font-size: 1.25rem; font-family: var(--font-serif); color: var(--gold-light); margin-bottom: 4px;">Client Privileges & Discount Generator</h2>
+            <p style="font-size: 0.82rem; color: var(--text-muted);">Generate custom promo codes for your VIP clients, marketing campaigns, or private sales. Changes sync live instantly to the customer storefront.</p>
+          </div>
+          <button type="button" class="btn-secondary" id="refreshCouponsBtn" style="font-size: 0.82rem; padding: 8px 16px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+            Refresh Codes
+          </button>
+        </div>
+
+        <div style="display: grid; grid-template-columns: minmax(320px, 400px) 1fr; gap: 1.5rem; align-items: start;">
+          
+          <!-- Generator Form Card -->
+          <div class="settings-card" style="margin-bottom: 0;">
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 1.25rem; border-bottom: 1px solid var(--border-color); padding-bottom: 12px;">
+              <div style="width: 38px; height: 38px; border-radius: 8px; background: rgba(197, 160, 89, 0.15); border: 1px solid var(--border-color); display: flex; align-items: center; justify-content: center; color: var(--gold-primary);">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg>
+              </div>
+              <div>
+                <h3 style="font-size: 1.1rem; color: var(--text-main); font-family: var(--font-serif); font-weight: 600;">Create Discount Code</h3>
+                <span style="font-size: 0.76rem; color: var(--text-muted);">Configured with instant live storefront sync</span>
+              </div>
+            </div>
+
+            <form id="couponForm" novalidate>
+              <div class="form-group" style="margin-bottom: 1rem;">
+                <label for="couponCodeInput">Promo Code *</label>
+                <div style="display: flex; gap: 8px;">
+                  <input type="text" id="couponCodeInput" class="form-input" placeholder="e.g. VIP20 or SUMMER15" style="text-transform: uppercase; font-family: monospace; font-weight: 700; letter-spacing: 1px;" required>
+                  <button type="button" class="btn-secondary" id="btnGenRandomCode" title="Generate clean random code" style="padding: 0 14px; white-space: nowrap; font-size: 0.8rem;">
+                    🎲 Auto
+                  </button>
+                </div>
+              </div>
+
+              <div class="form-group" style="margin-bottom: 1rem;">
+                <label for="couponDiscountInput">Discount Percentage (% OFF) *</label>
+                <div style="display: flex; gap: 6px; margin-bottom: 8px; flex-wrap: wrap;" id="presetPillsContainer">
+                  <button type="button" class="preset-pill active" data-percent="10">10%</button>
+                  <button type="button" class="preset-pill" data-percent="15">15%</button>
+                  <button type="button" class="preset-pill" data-percent="20">20%</button>
+                  <button type="button" class="preset-pill" data-percent="25">25%</button>
+                  <button type="button" class="preset-pill" data-percent="30">30%</button>
+                  <button type="button" class="preset-pill" data-percent="50">50%</button>
+                </div>
+                <div style="position: relative;">
+                  <input type="number" id="couponDiscountInput" class="form-input" min="1" max="100" value="10" placeholder="10" required style="padding-right: 35px;">
+                  <span style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: var(--gold-primary); font-weight: 700;">%</span>
+                </div>
+              </div>
+
+              <div class="form-group" style="margin-bottom: 1rem;">
+                <label for="couponMinOrderInput">Minimum Order Value (MAD)</label>
+                <input type="number" id="couponMinOrderInput" class="form-input" min="0" step="50" value="0" placeholder="0 (No minimum order)">
+                <span style="font-size: 0.72rem; color: var(--text-muted); margin-top: 4px; display: block;">Set 0 to allow on any cart total</span>
+              </div>
+
+              <div class="form-group" style="margin-bottom: 1.25rem;">
+                <label for="couponDescInput">Client Note / Campaign Description</label>
+                <input type="text" id="couponDescInput" class="form-input" placeholder="e.g. VIP client privilege for Casablanca collection">
+              </div>
+
+              <div class="form-group" style="margin-bottom: 1.25rem;">
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.86rem; color: var(--text-main);">
+                  <input type="checkbox" id="couponActiveCheck" checked style="accent-color: var(--gold-primary); width: 16px; height: 16px;">
+                  <span>Active immediately on customer bag & checkout</span>
+                </label>
+              </div>
+
+              <button type="submit" class="btn-primary-action" id="btnSaveCoupon" style="width: 100%; justify-content: center; padding: 12px; font-weight: 600;">
+                ✓ Save & Activate Discount Code
+              </button>
+            </form>
+          </div>
+
+          <!-- Active Codes Table Card -->
+          <div class="settings-card" style="margin-bottom: 0;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; flex-wrap: wrap; gap: 10px; border-bottom: 1px solid var(--border-color); padding-bottom: 12px;">
+              <div>
+                <h3 style="font-size: 1.15rem; color: var(--text-main); font-family: var(--font-serif); font-weight: 600;">Active Client Codes (<span id="couponListCount">0</span>)</h3>
+                <p style="font-size: 0.76rem; color: var(--text-muted);">Codes are validated live in real-time when clients apply them</p>
+              </div>
+              <input type="text" id="searchCouponsInput" class="admin-search-input" placeholder="Search codes..." style="max-width: 180px; padding: 6px 12px; font-size: 0.8rem;">
+            </div>
+
+            <div class="table-container" style="background: transparent;">
+              <table class="admin-table">
+                <thead>
+                  <tr>
+                    <th>Promo Code</th>
+                    <th>Discount</th>
+                    <th>Min. Spend</th>
+                    <th>Client Note</th>
+                    <th>Redemptions</th>
+                    <th>Status</th>
+                    <th style="text-align: right;">Action</th>
+                  </tr>
+                </thead>
+                <tbody id="couponsTableBody">
+                  <!-- Injected via admin.js -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
         </div>
       </section>
 

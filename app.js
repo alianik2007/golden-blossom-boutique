@@ -567,11 +567,50 @@
     GBP: { rate: 0.082, symbol: '£', pos: 'before' }
   };
 
-  const COUPONS = {
-    'GOLDEN10': 0.10,
-    'BLOSSOM20': 0.20,
-    'CASABLANCA': 0.15
+  let COUPONS = {
+    'GOLDEN10': { discountPercent: 10, rate: 0.10, minOrderMAD: 0, active: true },
+    'BLOSSOM20': { discountPercent: 20, rate: 0.20, minOrderMAD: 1000, active: true },
+    'CASABLANCA': { discountPercent: 15, rate: 0.15, minOrderMAD: 500, active: true }
   };
+
+  function getCouponData(code) {
+    if (!code) return null;
+    const key = String(code).toUpperCase().trim();
+    const c = COUPONS[key];
+    if (!c) return null;
+    if (typeof c === 'number') {
+      return { code: key, discountPercent: Math.round(c * 100), rate: c, minOrderMAD: 0, active: true };
+    }
+    if (c.active === false) return null;
+    const pct = Number(c.discountPercent) || 10;
+    return {
+      code: key,
+      discountPercent: pct,
+      rate: pct / 100,
+      minOrderMAD: Number(c.minOrderMAD) || 0,
+      active: true,
+      description: c.description || ''
+    };
+  }
+
+  function applyLiveCoupons(couponList) {
+    if (!Array.isArray(couponList)) return;
+    couponList.forEach(c => {
+      if (c && c.code) {
+        const key = String(c.code).toUpperCase().trim();
+        const pct = Number(c.discountPercent) || 10;
+        COUPONS[key] = {
+          code: key,
+          discountPercent: pct,
+          rate: pct / 100,
+          minOrderMAD: Number(c.minOrderMAD) || 0,
+          active: c.active !== false,
+          description: c.description || ''
+        };
+      }
+    });
+    updateCartUI();
+  }
 
   const CONFIG = {
     freeShippingThresholdMAD: 500
@@ -1089,8 +1128,13 @@
     }
 
     let discountMAD = 0;
-    if (STATE.appliedCoupon && COUPONS[STATE.appliedCoupon]) {
-      discountMAD = rawSubtotalMAD * COUPONS[STATE.appliedCoupon];
+    if (STATE.appliedCoupon) {
+      const cData = getCouponData(STATE.appliedCoupon);
+      if (cData) {
+        if (!cData.minOrderMAD || rawSubtotalMAD >= cData.minOrderMAD) {
+          discountMAD = rawSubtotalMAD * cData.rate;
+        }
+      }
     }
 
     // Free shipping threshold
@@ -2374,14 +2418,21 @@
     // Apply Coupon
     DOM.btnApplyCoupon.addEventListener('click', () => {
       const code = DOM.cartCouponInput.value.trim().toUpperCase();
-      if (COUPONS[code]) {
+      if (!code) return;
+      const cData = getCouponData(code);
+      if (cData) {
+        const totals = calculateCartTotals();
+        if (cData.minOrderMAD > 0 && totals.rawSubtotalMAD < cData.minOrderMAD) {
+          showToast(`This code requires a minimum purchase of ${cData.minOrderMAD} MAD`, '⚠️');
+          return;
+        }
         STATE.appliedCoupon = code;
         DOM.cartCouponInput.value = '';
         saveState();
         updateCartUI();
-        showToast(`Promo code "${code}" applied (-${COUPONS[code] * 100}%)!`, '🏷️');
+        showToast(`Promo code "${code}" applied (-${cData.discountPercent}%)!`, '🏷️');
       } else {
-        showToast('Invalid promo code. Try GOLDEN10 or BLOSSOM20', '❌');
+        showToast('Invalid or expired promo code', '❌');
       }
     });
 
@@ -2733,6 +2784,32 @@
       } catch(err) {}
     }
 
+    // 3. Fetch updated Discount Coupons (with static coupons.json fallback)
+    try {
+      let res = await fetch(`${API_BASE}/api/coupons?_t=${Date.now()}`);
+      if (!res.ok) {
+        res = await fetch(`coupons.json?_t=${Date.now()}`);
+      }
+      if (res.ok) {
+        const liveCoupons = await res.json();
+        if (Array.isArray(liveCoupons) && liveCoupons.length > 0) {
+          applyLiveCoupons(liveCoupons);
+          try { localStorage.setItem('gb_boutique_coupons', JSON.stringify(liveCoupons)); } catch(e){}
+        }
+      }
+    } catch (e) {
+      try {
+        const staticCoupons = await fetch(`coupons.json?_t=${Date.now()}`);
+        if (staticCoupons.ok) {
+          const list = await staticCoupons.json();
+          if (Array.isArray(list) && list.length > 0) applyLiveCoupons(list);
+        } else {
+          const stored = localStorage.getItem('gb_boutique_coupons');
+          if (stored) applyLiveCoupons(JSON.parse(stored));
+        }
+      } catch(err) {}
+    }
+
     // Record server version
     try {
       const vRes = await fetch(`${API_BASE}/api/version?_t=${Date.now()}`);
@@ -2761,6 +2838,9 @@
             loadDynamicCatalogAndSettings();
           } else if (type === 'CATALOG_UPDATED') {
             loadDynamicCatalogAndSettings();
+          } else if (type === 'COUPONS_UPDATED') {
+            if (Array.isArray(payload)) applyLiveCoupons(payload);
+            loadDynamicCatalogAndSettings();
           }
         };
       } catch (e) {}
@@ -2768,7 +2848,7 @@
 
     // Channel 2: Storage Event Listener (Instant cross-window fallback)
     window.addEventListener('storage', (e) => {
-      if (e.key === 'gb_last_sync_timestamp' || e.key === 'gb_boutique_products' || e.key === 'gb_website_settings') {
+      if (e.key === 'gb_last_sync_timestamp' || e.key === 'gb_boutique_products' || e.key === 'gb_website_settings' || e.key === 'gb_boutique_coupons') {
         loadDynamicCatalogAndSettings();
       }
     });

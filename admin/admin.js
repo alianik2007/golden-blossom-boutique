@@ -15,6 +15,7 @@
 
   let products = [];
   let orders = [];
+  let coupons = [];
   let websiteSettings = {};
   let parsedExcelProducts = [];
 
@@ -146,6 +147,22 @@
     btnResetOrders: document.getElementById('btnResetOrders'),
     btnQuickResetStats: document.getElementById('btnQuickResetStats'),
 
+    // Promo & Discount Codes
+    tabCountCoupons: document.getElementById('tabCountCoupons'),
+    couponForm: document.getElementById('couponForm'),
+    couponCodeInput: document.getElementById('couponCodeInput'),
+    btnGenRandomCode: document.getElementById('btnGenRandomCode'),
+    couponDiscountInput: document.getElementById('couponDiscountInput'),
+    couponMinOrderInput: document.getElementById('couponMinOrderInput'),
+    couponDescInput: document.getElementById('couponDescInput'),
+    couponActiveCheck: document.getElementById('couponActiveCheck'),
+    btnSaveCoupon: document.getElementById('btnSaveCoupon'),
+    couponsTableBody: document.getElementById('couponsTableBody'),
+    couponListCount: document.getElementById('couponListCount'),
+    searchCouponsInput: document.getElementById('searchCouponsInput'),
+    refreshCouponsBtn: document.getElementById('refreshCouponsBtn'),
+    presetPillsContainer: document.getElementById('presetPillsContainer'),
+
     // Toast
     adminToast: document.getElementById('adminToast')
   };
@@ -232,7 +249,8 @@
     await Promise.all([
       loadProducts(),
       loadWebsiteSettings(),
-      loadOrders()
+      loadOrders(),
+      loadCoupons()
     ]);
   }
 
@@ -304,6 +322,276 @@
       console.warn('Failed to load orders:', e.message);
     }
     updateStats();
+  }
+
+  // =========================================================================
+  // PROMO & DISCOUNT CODES MANAGEMENT
+  // =========================================================================
+  async function loadCoupons() {
+    try {
+      let res = await fetch(`${API_BASE}/api/coupons`);
+      if (!res.ok) {
+        res = await fetch('/coupons.json');
+      }
+      if (res.ok) {
+        coupons = await res.json();
+        try { localStorage.setItem('gb_boutique_coupons', JSON.stringify(coupons)); } catch(e){}
+      } else {
+        throw new Error('Server returned ' + res.status);
+      }
+    } catch (e) {
+      console.warn('Loading coupons from fallback:', e.message);
+      try {
+        const staticRes = await fetch('/coupons.json');
+        if (staticRes.ok) {
+          coupons = await staticRes.json();
+        } else {
+          const stored = localStorage.getItem('gb_boutique_coupons');
+          if (stored) coupons = JSON.parse(stored);
+          else coupons = [];
+        }
+      } catch (err) {
+        try {
+          const stored = localStorage.getItem('gb_boutique_coupons');
+          if (stored) coupons = JSON.parse(stored);
+          else coupons = [];
+        } catch(e3) { coupons = []; }
+      }
+    }
+    renderCouponsTable();
+    updateCouponsCount();
+  }
+
+  function updateCouponsCount() {
+    const activeCount = coupons.filter(c => c.active !== false).length;
+    if (DOM.tabCountCoupons) DOM.tabCountCoupons.textContent = coupons.length;
+    if (DOM.couponListCount) DOM.couponListCount.textContent = `${activeCount} Active / ${coupons.length} Total`;
+  }
+
+  function renderCouponsTable() {
+    if (!DOM.couponsTableBody) return;
+    const query = (DOM.searchCouponsInput ? DOM.searchCouponsInput.value : '').toLowerCase().trim();
+
+    const filtered = coupons.filter(c => {
+      if (!query) return true;
+      return (c.code || '').toLowerCase().includes(query) ||
+             (c.description || '').toLowerCase().includes(query);
+    });
+
+    if (filtered.length === 0) {
+      DOM.couponsTableBody.innerHTML = `
+        <tr>
+          <td colspan="7" style="text-align: center; padding: 2.5rem; color: var(--text-muted);">
+            ${query ? 'No discount codes match your search' : 'No promo codes generated yet. Use the generator on the left to create one!'}
+          </td>
+        </tr>
+      `;
+      return;
+    }
+
+    DOM.couponsTableBody.innerHTML = filtered.map(c => {
+      const isActive = c.active !== false;
+      const minSpendText = (c.minOrderMAD && c.minOrderMAD > 0) ? `${Number(c.minOrderMAD).toLocaleString()} MAD` : 'No min.';
+      const redemptions = c.usageCount || 0;
+      return `
+        <tr data-coupon-id="${escapeHtml(c.id || c.code)}">
+          <td>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span class="coupon-badge">${escapeHtml(c.code)}</span>
+              <button type="button" class="btn-copy-code" data-copy="${escapeHtml(c.code)}" title="Copy code">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+              </button>
+            </div>
+          </td>
+          <td>
+            <strong style="color: var(--gold-light); font-size: 0.95rem;">-${c.discountPercent}% OFF</strong>
+          </td>
+          <td>
+            <span style="font-size: 0.84rem; color: var(--text-main);">${minSpendText}</span>
+          </td>
+          <td style="max-width: 200px; font-size: 0.8rem; color: var(--text-muted); line-height: 1.4;">
+            ${escapeHtml(c.description || 'VIP Privilege')}
+          </td>
+          <td>
+            <span style="font-weight: 600; color: var(--text-main);">${redemptions}</span>
+          </td>
+          <td>
+            <button type="button" class="btn-toggle-coupon" data-code="${escapeHtml(c.code)}" title="Click to toggle status" style="background: none; border: none; cursor: pointer; padding: 0;">
+              <span class="${isActive ? 'status-pill-active' : 'status-pill-paused'}">
+                ${isActive ? '● Active' : '○ Paused'}
+              </span>
+            </button>
+          </td>
+          <td style="text-align: right;">
+            <div style="display: flex; gap: 8px; justify-content: flex-end;">
+              <button type="button" class="btn-delete-coupon" data-code="${escapeHtml(c.code)}" title="Delete discount code" style="background: rgba(224, 82, 82, 0.1); border: 1px solid rgba(224, 82, 82, 0.3); color: #e05252; border-radius: 4px; padding: 5px 10px; cursor: pointer; font-size: 0.76rem; display: inline-flex; align-items: center; gap: 4px;">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                Delete
+              </button>
+            </div>
+          </td>
+        </tr>
+      `;
+    }).join('');
+
+    // Wire table button actions
+    DOM.couponsTableBody.querySelectorAll('.btn-copy-code').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const code = btn.dataset.copy;
+        navigator.clipboard.writeText(code).then(() => {
+          showToast(`Copied code "${code}" to clipboard!`);
+        });
+      });
+    });
+
+    DOM.couponsTableBody.querySelectorAll('.btn-toggle-coupon').forEach(btn => {
+      btn.addEventListener('click', () => handleToggleCoupon(btn.dataset.code));
+    });
+
+    DOM.couponsTableBody.querySelectorAll('.btn-delete-coupon').forEach(btn => {
+      btn.addEventListener('click', () => handleDeleteCoupon(btn.dataset.code));
+    });
+  }
+
+  function generateRandomPromoCode() {
+    const prefixes = ['VIP', 'GOLD', 'BLOSSOM', 'SUMMER', 'ATELIER', 'LUXE', 'PRIVILEGE'];
+    const p = prefixes[Math.floor(Math.random() * prefixes.length)];
+    const num = Math.floor(100 + Math.random() * 900);
+    return `${p}${num}`;
+  }
+
+  async function handleSaveCoupon(e) {
+    if (e && e.preventDefault) e.preventDefault();
+    const code = (DOM.couponCodeInput ? DOM.couponCodeInput.value : '').trim().toUpperCase().replace(/[^A-Z0-9_-]/g, '');
+    const discountPercent = parseInt(DOM.couponDiscountInput ? DOM.couponDiscountInput.value : '10', 10);
+    const minOrderMAD = parseFloat(DOM.couponMinOrderInput ? DOM.couponMinOrderInput.value : '0') || 0;
+    const description = (DOM.couponDescInput ? DOM.couponDescInput.value : '').trim();
+    const active = DOM.couponActiveCheck ? DOM.couponActiveCheck.checked : true;
+
+    if (!code) {
+      showToast('Please enter a valid promo code', false);
+      return;
+    }
+    if (isNaN(discountPercent) || discountPercent < 1 || discountPercent > 100) {
+      showToast('Discount must be between 1% and 100%', false);
+      return;
+    }
+
+    const payload = {
+      code,
+      discountPercent,
+      minOrderMAD,
+      description: description || `Special -${discountPercent}% VIP privilege`,
+      active
+    };
+
+    if (DOM.btnSaveCoupon) {
+      DOM.btnSaveCoupon.disabled = true;
+      DOM.btnSaveCoupon.textContent = 'Saving Code...';
+    }
+
+    try {
+      const res = await fetch(`${API_BASE}/api/coupons`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(payload)
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.coupons) coupons = data.coupons;
+        else {
+          const idx = coupons.findIndex(c => c.code.toUpperCase() === code);
+          if (idx >= 0) coupons[idx] = data.coupon || payload;
+          else coupons.unshift(data.coupon || payload);
+        }
+      } else {
+        // Fallback local update
+        const idx = coupons.findIndex(c => c.code.toUpperCase() === code);
+        const localItem = { id: 'coup-' + Date.now(), ...payload, usageCount: 0, createdAt: new Date().toISOString() };
+        if (idx >= 0) coupons[idx] = localItem;
+        else coupons.unshift(localItem);
+      }
+
+      try { localStorage.setItem('gb_boutique_coupons', JSON.stringify(coupons)); } catch(e){}
+      renderCouponsTable();
+      updateCouponsCount();
+      notifyLiveWebsiteUpdate('COUPONS_UPDATED', coupons);
+
+      // Reset form
+      if (DOM.couponCodeInput) DOM.couponCodeInput.value = '';
+      if (DOM.couponDescInput) DOM.couponDescInput.value = '';
+      if (DOM.couponMinOrderInput) DOM.couponMinOrderInput.value = '0';
+      
+      showToast(`✨ Promo code "${code}" (-${discountPercent}%) created & live on storefront!`);
+    } catch(err) {
+      // Local fallback
+      const idx = coupons.findIndex(c => c.code.toUpperCase() === code);
+      const localItem = { id: 'coup-' + Date.now(), ...payload, usageCount: 0, createdAt: new Date().toISOString() };
+      if (idx >= 0) coupons[idx] = localItem;
+      else coupons.unshift(localItem);
+
+      try { localStorage.setItem('gb_boutique_coupons', JSON.stringify(coupons)); } catch(e){}
+      renderCouponsTable();
+      updateCouponsCount();
+      notifyLiveWebsiteUpdate('COUPONS_UPDATED', coupons);
+      showToast(`Promo code "${code}" saved locally & active!`);
+    } finally {
+      if (DOM.btnSaveCoupon) {
+        DOM.btnSaveCoupon.disabled = false;
+        DOM.btnSaveCoupon.textContent = '✓ Save & Activate Discount Code';
+      }
+    }
+  }
+
+  async function handleToggleCoupon(code) {
+    try {
+      const res = await fetch(`${API_BASE}/api/coupons/toggle`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ code })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.coupons) coupons = data.coupons;
+      } else {
+        const idx = coupons.findIndex(c => c.code.toUpperCase() === code.toUpperCase());
+        if (idx >= 0) coupons[idx].active = !coupons[idx].active;
+      }
+    } catch(e) {
+      const idx = coupons.findIndex(c => c.code.toUpperCase() === code.toUpperCase());
+      if (idx >= 0) coupons[idx].active = !coupons[idx].active;
+    }
+    try { localStorage.setItem('gb_boutique_coupons', JSON.stringify(coupons)); } catch(e){}
+    renderCouponsTable();
+    updateCouponsCount();
+    notifyLiveWebsiteUpdate('COUPONS_UPDATED', coupons);
+    showToast(`Discount code status updated!`);
+  }
+
+  async function handleDeleteCoupon(code) {
+    if (!confirm(`Are you sure you want to delete discount code "${code}"? Clients will no longer be able to use it.`)) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/coupons/${encodeURIComponent(code)}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders()
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.coupons) coupons = data.coupons;
+        else coupons = coupons.filter(c => c.code.toUpperCase() !== code.toUpperCase());
+      } else {
+        coupons = coupons.filter(c => c.code.toUpperCase() !== code.toUpperCase());
+      }
+    } catch(e) {
+      coupons = coupons.filter(c => c.code.toUpperCase() !== code.toUpperCase());
+    }
+    try { localStorage.setItem('gb_boutique_coupons', JSON.stringify(coupons)); } catch(e){}
+    renderCouponsTable();
+    updateCouponsCount();
+    notifyLiveWebsiteUpdate('COUPONS_UPDATED', coupons);
+    showToast(`Discount code "${code}" deleted.`);
   }
 
   async function handleResetOrders() {
@@ -1238,6 +1526,32 @@
     if (DOM.refreshOrdersBtn) DOM.refreshOrdersBtn.addEventListener('click', loadOrders);
     if (DOM.btnResetOrders) DOM.btnResetOrders.addEventListener('click', handleResetOrders);
     if (DOM.btnQuickResetStats) DOM.btnQuickResetStats.addEventListener('click', handleResetOrders);
+
+    // Promo & Discount Codes events
+    if (DOM.couponForm) DOM.couponForm.addEventListener('submit', handleSaveCoupon);
+    if (DOM.btnSaveCoupon) DOM.btnSaveCoupon.addEventListener('click', handleSaveCoupon);
+    if (DOM.btnGenRandomCode) {
+      DOM.btnGenRandomCode.addEventListener('click', () => {
+        if (DOM.couponCodeInput) DOM.couponCodeInput.value = generateRandomPromoCode();
+      });
+    }
+    if (DOM.presetPillsContainer) {
+      DOM.presetPillsContainer.querySelectorAll('.preset-pill').forEach(pill => {
+        pill.addEventListener('click', () => {
+          DOM.presetPillsContainer.querySelectorAll('.preset-pill').forEach(p => p.classList.remove('active'));
+          pill.classList.add('active');
+          if (DOM.couponDiscountInput) {
+            DOM.couponDiscountInput.value = pill.dataset.percent;
+          }
+        });
+      });
+    }
+    if (DOM.searchCouponsInput) {
+      DOM.searchCouponsInput.addEventListener('input', renderCouponsTable);
+    }
+    if (DOM.refreshCouponsBtn) {
+      DOM.refreshCouponsBtn.addEventListener('click', loadCoupons);
+    }
   }
 
   function escapeHtml(text) {
